@@ -2,82 +2,121 @@
 
 A local filesystem workspace pattern for Claude that provides persistent project state across conversation sessions without sacrificing access to conversation history search.
 
+This tool creates **Local Projects** -- persistent workspaces on your machine managed through the Filesystem MCP. These are distinct from **Claude Projects** (Anthropic's built-in feature), which provide persistent context but isolate your conversation from history search tools. The two approaches are complementary.
+
 ## The Problem
 
-Anthropic's built-in Projects feature gives you persistent context across sessions. The tradeoff: it isolates your conversation from general history search tools (`conversation_search` and `recent_chats`). For analytical work that needs both persistent state AND dynamic evidence gathering from past conversations, this is a forced choice that degrades output quality.
+Anthropic's Claude Projects give you persistent context across sessions. The tradeoff: they isolate your conversation from general history search tools (`conversation_search` and `recent_chats`). For analytical work that needs both persistent state AND dynamic evidence gathering from past conversations, this is a forced choice that degrades output quality.
 
 ## The Solution
 
-A local directory structure on your machine, accessible via the Filesystem MCP, that functions as a persistent project workspace. Files written during one conversation persist on disk. Any future conversation can read them through the same MCP connection. Because you never enter a Project boundary, your full conversation search access is preserved.
+Local Project workspaces on your machine, accessed via the Filesystem MCP. Files written during one conversation persist on disk. Any future conversation can read them through the same MCP connection. Because you never enter a Claude Project boundary, your full conversation search access is preserved.
 
 You get persistence AND search. No tradeoff.
 
 ## Prerequisites
 
 - **Claude Desktop** or any Claude interface with MCP support
-- **Filesystem MCP** configured and connected, with access to the directory where you'll create your workspace
+- **Filesystem MCP** configured and connected, with access to the directory where your workspaces will live
 - **Git** (optional, for version control)
 
 ## Quick Start
 
-### Windows (PowerShell)
+### 1. Clone the Framework
 
 ```powershell
-# Clone the repo
+# Windows
 git clone https://github.com/barrykramer-cbds/claude-persistent-workspace.git C:\Dev\claude-persistent-workspace
-
-# Or run the setup script standalone to create a fresh workspace anywhere
-.\setup.ps1 -Path "C:\Projects\my-research-workspace"
 ```
-
-### macOS / Linux (Bash)
 
 ```bash
-# Clone the repo
+# macOS / Linux
 git clone https://github.com/barrykramer-cbds/claude-persistent-workspace.git ~/dev/claude-persistent-workspace
-
-# Or run the setup script standalone
-chmod +x setup.sh
-./setup.sh ~/projects/my-research-workspace
 ```
 
-### Then in Claude
+### 2. Create a Local Project
 
-Start a new conversation and say:
+```powershell
+# Windows
+cd C:\Dev\claude-persistent-workspace
+.\new-project.ps1 -Name "my-research" -Description "Research project on quantum decoherence"
+```
 
-> "Read the file at [YOUR_PATH]/.session_state.md and let's pick up where we left off."
+```bash
+# macOS / Linux
+cd ~/dev/claude-persistent-workspace
+./new-project.sh my-research "Research project on quantum decoherence"
+```
 
-That's it. Claude reads the state file, understands where the work stands, and continues.
+This creates a fully scaffolded workspace at `C:\Dev\workspaces\my-research` (or `~/dev/workspaces/my-research`) and registers it in the project registry.
+
+### 3. Start Working
+
+Open a Claude conversation and say:
+
+> "Read C:\Dev\workspaces\my-research\.session_state.md and let's get started."
+
+Or to see all your projects:
+
+> "Read C:\Dev\workspaces\.registry.md and show me my Local Projects."
 
 ## How It Works
 
+### Local Projects vs Claude Projects
+
+| | Local Projects (this tool) | Claude Projects (Anthropic) |
+|---|---|---|
+| Persistence | Files on your local disk | Anthropic's project context |
+| Conversation search | Full access preserved | Isolated from history |
+| Data location | Your machine only | Anthropic's servers |
+| Setup | Filesystem MCP required | Built into Claude |
+| Best for | Multi-session research needing history access | Self-contained work within a project boundary |
+
+Use Claude Projects for self-contained work. Use Local Projects for work that spans your full conversation history.
+
+### Multi-Project Management
+
+The `new-project` script creates independent workspaces under a shared root directory and maintains a registry file:
+
+```
+C:\Dev\workspaces\                   (or ~/dev/workspaces/)
+    .registry.md                     # Index of all Local Projects
+    my-research/                     # Project 1
+    spec-economy/                    # Project 2
+    case-study/                      # Project 3
+```
+
+Claude reads `.registry.md` to know what projects exist, where they live, and their status. You switch between projects by pointing Claude at the right `.session_state.md` file.
+
 ### Session State Management
 
-The `.session_state.md` file at the workspace root is the handoff mechanism between sessions. The protocol:
+The `.session_state.md` file at each workspace root is the handoff mechanism between sessions:
 
 1. **Start of session** -- Claude reads `.session_state.md` to understand current state
 2. **During session** -- Claude reads and writes files in the workspace as needed
 3. **End of session** -- Claude updates `.session_state.md` with what was accomplished, what changed, and what the next session should prioritize
 
-### Directory Structure
+### Project Directory Structure
+
+Each Local Project gets this scaffold:
 
 ```
-claude-workspace/
-├── .session_state.md          # Current analysis state (read first every session)
-├── raw/                       # Primary source data
-│   ├── samples/               # Conversation excerpts, writing samples, evidence
-│   ├── external/              # Third-party data, research, reference material
-│   └── uploads/               # Files you drop in between sessions
-├── analysis/                  # Work in progress
-│   ├── catalogs/              # Pattern catalogs, taxonomies, inventories
-│   ├── validation/            # Testing scripts and results
-│   └── models/                # Frameworks, difference models, mappings
-├── deliverables/              # Output documents
-│   ├── drafts/                # Work in progress deliverables
-│   └── final/                 # Completed, versioned deliverables
-├── snapshots/                 # Timestamped state captures
-│   └── YYYY-MM-DD/            # Dated snapshot directories
-└── scripts/                   # Utility scripts
+project-name/
+|-- .session_state.md          # Current analysis state (read first every session)
+|-- raw/                       # Primary source data
+|   |-- samples/               # Conversation excerpts, writing samples, evidence
+|   |-- external/              # Third-party data, research, reference material
+|   |-- uploads/               # Files you drop in between sessions
+|-- analysis/                  # Work in progress
+|   |-- catalogs/              # Pattern catalogs, taxonomies, inventories
+|   |-- validation/            # Testing scripts and results
+|   |-- models/                # Frameworks, difference models, mappings
+|-- deliverables/              # Output documents
+|   |-- drafts/                # Work in progress deliverables
+|   |-- final/                 # Completed, versioned deliverables
+|-- snapshots/                 # Timestamped state captures
+|   |-- YYYY-MM-DD/            # Dated snapshot directories
+|-- scripts/                   # Utility scripts
 ```
 
 ### Snapshots
@@ -91,6 +130,30 @@ For temporal analysis (tracking how work evolves), copy key files into `snapshot
 - Version deliverables: `_v1`, `_v2`
 - Date-stamp raw data: `raw_sample_technical_2026-03-26.md`
 
+## Framework Files
+
+This repo contains the reusable framework only. No project-specific data.
+
+| File | Purpose |
+|------|--------|
+| `new-project.ps1` | Create a new Local Project (Windows) |
+| `new-project.sh` | Create a new Local Project (macOS/Linux) |
+| `setup.ps1` | Create a standalone workspace at any path (Windows) |
+| `setup.sh` | Create a standalone workspace at any path (macOS/Linux) |
+| `templates/` | Reusable templates for session state, pattern catalogs, evidence libraries, analysis frameworks |
+
+## Customization
+
+The default workspaces root is `C:\Dev\workspaces` (Windows) or `~/dev/workspaces` (macOS/Linux). Override it:
+
+```powershell
+.\new-project.ps1 -Name "my-project" -WorkspacesRoot "D:\Research\workspaces"
+```
+
+```bash
+./new-project.sh my-project "Description" ~/research/workspaces
+```
+
 ## Use Cases
 
 - Multi-session research projects
@@ -99,17 +162,11 @@ For temporal analysis (tracking how work evolves), copy key files into `snapshot
 - Any work where Claude needs to "remember" across sessions without losing conversation search access
 - Collaborative studies requiring persistent evidence libraries and pattern catalogs
 
-## Why Not Just Use Projects?
-
-Projects work well when your entire workflow lives inside the project boundary and you don't need to reference conversations outside it. This workspace pattern is for situations where you need both: the persistence of a project space AND the ability to search your full conversation history for evidence, prior analysis, or context that lives outside the current project scope.
-
-The two approaches are complementary. Use Projects for self-contained work. Use this workspace for work that spans your full conversation history.
-
 ## Architecture Notes
 
 The Filesystem MCP is the only required integration. Claude reads and writes directly to your local filesystem. No cloud storage, no API keys, no external dependencies. Your data stays on your machine.
 
-The workspace is just a directory convention plus a session state protocol. The value comes from the pattern, not from any particular technology.
+The workspace is a directory convention plus a session state protocol plus a project registry. The value comes from the pattern, not from any particular technology.
 
 ## License
 
