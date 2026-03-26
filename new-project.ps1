@@ -166,13 +166,28 @@ if (-not (Test-Path $registryPath)) {
     Set-Content -Path $registryPath -Value $registryContent -Encoding UTF8
 }
 
-# Insert new project into the Active Projects table
+# Insert new project row after the Active Projects table header separator
+# Uses line-by-line insertion to avoid regex issues with pipes and backslashes
 $dateStamp = Get-Date -Format "yyyy-MM-dd"
 $newRow = "| $SafeName | ``$ProjectPath`` | $dateStamp | active | $descLine |"
-$registryContent = Get-Content -Path $registryPath -Raw
-$registryContent = $registryContent -replace '(\| Project \| Path \| Created \| Status \| Description \|\r?\n\|---------|------|---------|--------|-------------|)', "`$1`n$newRow"
-Set-Content -Path $registryPath -Value $registryContent -Encoding UTF8
-Write-Host "  Registered in: $registryPath" -ForegroundColor Green
+$lines = Get-Content -Path $registryPath
+$output = @()
+$inserted = $false
+foreach ($line in $lines) {
+    $output += $line
+    if (-not $inserted -and $line -match '^\|---.*\|---.*\|---.*\|---.*\|---') {
+        $output += $newRow
+        $inserted = $true
+    }
+}
+Set-Content -Path $registryPath -Value $output -Encoding UTF8
+
+if ($inserted) {
+    Write-Host "  Registered in: $registryPath" -ForegroundColor Green
+} else {
+    Write-Host "  Warning: Could not find table header in registry. Row not inserted." -ForegroundColor Yellow
+    Write-Host "  You may need to manually add this project to: $registryPath" -ForegroundColor Yellow
+}
 
 Write-Host ""
 Write-Host "Local Project '$SafeName' is ready." -ForegroundColor Cyan
