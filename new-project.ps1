@@ -79,6 +79,7 @@ Write-Host ""
 # Create directory structure
 $dirs = @(
     $ProjectPath,
+    "$ProjectPath\context",
     "$ProjectPath\raw",
     "$ProjectPath\raw\samples",
     "$ProjectPath\raw\external",
@@ -99,6 +100,25 @@ foreach ($dir in $dirs) {
     Write-Host "  Created: $dir" -ForegroundColor Green
 }
 
+# Create context manifest
+$manifestContent = @"
+# Context Manifest
+# This file indexes all reference documents in the context/ directory.
+# Claude reads this manifest at session start to know what project knowledge is available.
+# Files are loaded on demand during the session, not all at once.
+#
+# Drop files into context/ between sessions. Update this manifest to describe them.
+# Claude will discover new files but works better when the manifest is current.
+
+## Available Context Files
+
+| File | Size | Description |
+|------|------|-------------|
+"@
+$manifestPath = "$ProjectPath\context\manifest.md"
+Set-Content -Path $manifestPath -Value $manifestContent -Encoding UTF8
+Write-Host "  Created: $manifestPath" -ForegroundColor Green
+
 # Create session state file
 $timestamp = Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"
 $descLine = if ($Description) { $Description } else { "No description provided." }
@@ -106,6 +126,13 @@ $sessionState = @"
 # Session State
 ## Project: $Name
 ## Last Updated: $timestamp
+
+## Session Start Protocol
+1. Read this file first
+2. Read context/manifest.md to see available project knowledge
+3. Load specific context files as needed during the session
+4. Update this file before the session ends
+
 ## Last Session Summary
 Local Project initialized. No analysis sessions have been conducted yet.
 
@@ -134,6 +161,7 @@ No pivots recorded.
 
 ## File Manifest
 - .session_state.md (this file) - Session handoff state
+- context/manifest.md - Index of project knowledge files
 "@
 
 $sessionStatePath = "$ProjectPath\.session_state.md"
@@ -144,7 +172,6 @@ Write-Host "  Created: $sessionStatePath" -ForegroundColor Green
 $registryPath = Join-Path $WorkspacesRoot ".registry.md"
 
 if (-not (Test-Path $registryPath)) {
-    # Create registry if it doesn't exist
     $registryContent = @"
 # Local Project Registry
 # This file is the index of all Local Project workspaces managed by claude-persistent-workspace.
@@ -167,7 +194,6 @@ if (-not (Test-Path $registryPath)) {
 }
 
 # Insert new project row after the Active Projects table header separator
-# Uses line-by-line insertion to avoid regex issues with pipes and backslashes
 $dateStamp = Get-Date -Format "yyyy-MM-dd"
 $newRow = "| $SafeName | ``$ProjectPath`` | $dateStamp | active | $descLine |"
 $lines = Get-Content -Path $registryPath
@@ -195,6 +221,10 @@ Write-Host ""
 Write-Host "To start working:" -ForegroundColor White
 Write-Host "  Open Claude and say:" -ForegroundColor White
 Write-Host "  'Read $WorkspacesRoot\$SafeName\.session_state.md and let's get started.'" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "To add project knowledge:" -ForegroundColor White
+Write-Host "  Drop files into: $ProjectPath\context\" -ForegroundColor White
+Write-Host "  Update the manifest: $ProjectPath\context\manifest.md" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Or to see all projects:" -ForegroundColor White
 Write-Host "  'Read $WorkspacesRoot\.registry.md and show me my Local Projects.'" -ForegroundColor Yellow

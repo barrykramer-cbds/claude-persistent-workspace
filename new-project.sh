@@ -42,7 +42,6 @@ if [ -d "$PROJECT_PATH" ]; then
     exit 1
 fi
 
-# Ensure workspaces root exists
 mkdir -p "$WORKSPACES_ROOT"
 
 echo ""
@@ -54,6 +53,7 @@ echo ""
 # Create directory structure
 dirs=(
     "$PROJECT_PATH"
+    "$PROJECT_PATH/context"
     "$PROJECT_PATH/raw"
     "$PROJECT_PATH/raw/samples"
     "$PROJECT_PATH/raw/external"
@@ -74,6 +74,23 @@ for dir in "${dirs[@]}"; do
     echo "  Created: $dir"
 done
 
+# Create context manifest
+cat > "$PROJECT_PATH/context/manifest.md" << 'MANIFEST'
+# Context Manifest
+# This file indexes all reference documents in the context/ directory.
+# Claude reads this manifest at session start to know what project knowledge is available.
+# Files are loaded on demand during the session, not all at once.
+#
+# Drop files into context/ between sessions. Update this manifest to describe them.
+# Claude will discover new files but works better when the manifest is current.
+
+## Available Context Files
+
+| File | Size | Description |
+|------|------|-------------|
+MANIFEST
+echo "  Created: $PROJECT_PATH/context/manifest.md"
+
 # Create session state file
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 DESC_LINE="${DESCRIPTION:-No description provided.}"
@@ -82,6 +99,13 @@ cat > "$PROJECT_PATH/.session_state.md" << EOF
 # Session State
 ## Project: $NAME
 ## Last Updated: $TIMESTAMP
+
+## Session Start Protocol
+1. Read this file first
+2. Read context/manifest.md to see available project knowledge
+3. Load specific context files as needed during the session
+4. Update this file before the session ends
+
 ## Last Session Summary
 Local Project initialized. No analysis sessions have been conducted yet.
 
@@ -110,6 +134,7 @@ No pivots recorded.
 
 ## File Manifest
 - .session_state.md (this file) - Session handoff state
+- context/manifest.md - Index of project knowledge files
 EOF
 echo "  Created: $PROJECT_PATH/.session_state.md"
 
@@ -137,13 +162,12 @@ if [ ! -f "$REGISTRY_PATH" ]; then
 REGISTRY
 fi
 
-# Insert new project row after the Active Projects table header
+# Insert new project row after the first table header separator in Active Projects
 DATE_STAMP=$(date +"%Y-%m-%d")
 NEW_ROW="| $SAFE_NAME | \`$PROJECT_PATH\` | $DATE_STAMP | active | $DESC_LINE |"
 
-# Use sed to insert after the header separator line in Active Projects
-sed -i "/^|---------|------|---------|--------|-------------|$/a\\
-$NEW_ROW" "$REGISTRY_PATH"
+# Use awk for reliable insertion after the first separator line
+awk -v row="$NEW_ROW" '/^\|---.*\|---.*\|---.*\|---.*\|---/ && !done { print; print row; done=1; next } { print }' "$REGISTRY_PATH" > "${REGISTRY_PATH}.tmp" && mv "${REGISTRY_PATH}.tmp" "$REGISTRY_PATH"
 
 echo "  Registered in: $REGISTRY_PATH"
 
@@ -153,6 +177,10 @@ echo ""
 echo "To start working:"
 echo "  Open Claude and say:"
 echo "  'Read $WORKSPACES_ROOT/$SAFE_NAME/.session_state.md and let's get started.'"
+echo ""
+echo "To add project knowledge:"
+echo "  Drop files into: $PROJECT_PATH/context/"
+echo "  Update the manifest: $PROJECT_PATH/context/manifest.md"
 echo ""
 echo "Or to see all projects:"
 echo "  'Read $WORKSPACES_ROOT/.registry.md and show me my Local Projects.'"

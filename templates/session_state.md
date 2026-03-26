@@ -1,5 +1,12 @@
 # Session State Template
 ## Last Updated: [ISO timestamp]
+
+## Session Start Protocol
+1. Read this file first
+2. Read context/manifest.md to see available project knowledge
+3. Load specific context files as needed during the session
+4. Update this file before the session ends
+
 ## Last Session Summary
 [2-3 sentences on what happened in the most recent session]
 
@@ -27,3 +34,4 @@
 ## File Manifest
 [List of all workspace files with brief descriptions and last-modified dates]
 - .session_state.md - Session handoff state
+- context/manifest.md - Index of project knowledge files
