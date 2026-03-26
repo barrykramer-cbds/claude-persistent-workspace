@@ -1,0 +1,28 @@
+# Project-specific data (keep out of the public repo)
+raw/
+analysis/
+deliverables/
+snapshots/
+scripts/
+
+# Session state contains project-specific context
+.session_state.md
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
